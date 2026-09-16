@@ -1,0 +1,31 @@
+# Ambientes virtuais
+venv/
+env/
+.venv/
+ENV/
+
+# Cache e bytecode do Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# VS Code (configs locais que não devem ser compartilhadas)
+.vscode/*
+!.vscode/extensions.json
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Arquivos temporários / backups
+*.tmp
+*.bak
+~$*
+
+# Logs
+*.log
+
+# Ambientes de variáveis sensíveis (se algum dia usarem)
+.env
