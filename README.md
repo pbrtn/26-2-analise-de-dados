@@ -48,6 +48,6 @@ Projeto colaborativo de análise de dados para a disciplina de Análise de Dados
 
 ## Time
 
-- [Nome 1]
-- [Nome 2]
-- [Nome 3]
+- Pedro Bertoncini Oliveira (25150202)
+- Leonardo Ghizoni (24250183)
+- Henrique Silva Antonelli (24100868)
