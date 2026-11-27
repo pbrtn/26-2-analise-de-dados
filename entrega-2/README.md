@@ -20,6 +20,8 @@ O treinamento pode levar alguns minutos. Com as dependências instaladas, a rend
 | `espacial.py` | Integração com a malha e mapas estaduais |
 | `agrupamento.py` | Comparação de agrupamentos e perfis em PCA |
 | `supervisionado.py` | Engenharia de atributos, comparação de modelos e teste por município |
+| `regressao.py` | Estimativa da quantidade de computadores e validação por município |
+| `caderno.py` | Dossiês de dados, território e diagnósticos por modelo |
 | `data/` | Recorte do Censo e malha estadual do IBGE |
 | `defs_simple.tex`, `cover.png`, `logo.png` e `fonts/` | Estilo e capa do template do professor e arquivos locais da fonte Lato |
 

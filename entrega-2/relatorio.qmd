@@ -39,6 +39,7 @@ execute:
 
 ```{python}
 from base import carregar, configurar_graficos, numero, pct, tabela
+from IPython.display import Markdown, display
 import pandas as pd
 
 configurar_graficos()
@@ -51,9 +52,11 @@ base, escolas, auditoria = carregar()
 
 # Introdução
 
-O Censo Escolar, coordenado pelo Inep, reúne informações sobre os estabelecimentos da educação básica brasileira. Este relatório retoma a análise exploratória da primeira entrega e investiga três perguntas. Como as condições de infraestrutura variam por território, rede e porte? Quais recursos tendem a aparecer juntos em perfis de escola? Com características cadastrais e físicas, é possível identificar escolas com maior probabilidade de estar sem internet?
+O Censo Escolar, coordenado pelo Inep, reúne informações sobre os estabelecimentos da educação básica brasileira. Este relatório retoma a análise exploratória da primeira entrega e investiga quatro perguntas. Como as condições de infraestrutura variam por território, rede e porte? Quais recursos tendem a aparecer juntos em perfis de escola? Com características cadastrais e físicas, é possível identificar escolas com maior probabilidade de estar sem internet? Com os mesmos atributos, qual é o erro ao estimar a quantidade de computadores para uso de estudantes?
 
 O estudo usa a escola como unidade de observação. As comparações descrevem estabelecimentos, com o mesmo peso para cada escola. A modelagem usa dados do mesmo ano para investigar capacidade de discriminação em municípios reservados. Seus resultados sustentam uma triagem exploratória de conectividade.
+
+A sequência de trabalho inclui preparação auditável, análises exploratória e geográfica, agrupamentos e duas tarefas supervisionadas. A organização por método, com código, saídas intermediárias e diagnósticos comparáveis, segue a abordagem de documentação dos exemplos de projeto indicados na disciplina [@exemplo-bigfoot; @exemplo-ovnis].
 
 # Dados e preparação
 
@@ -82,6 +85,124 @@ tabela_auditoria(base, escolas)
 ```
 
 Os indicadores binários usam apenas respostas válidas. Um zero significa ausência do recurso. Para comparar a pressão sobre os equipamentos, exigimos as duas contagens válidas e pelo menos um computador para alunos. A proporção elegível indica o alcance dessa estatística regional.
+
+```{=latex}
+\clearpage
+```
+
+## Presença de respostas nos indicadores binários
+
+O universo bruto inclui estabelecimentos com situações de funcionamento diferentes. Para observar se essa composição afeta a cobertura dos campos, calculamos a fração de ausentes em todas as escolas e entre as ativas. Os campos foram ordenados pelo percentual ausente no recorte ativo e, em empate, pelo percentual na base integral.
+
+```{python}
+#| label: fig-aus-bin
+#| fig-cap: "Proporção de valores ausentes nos indicadores binários com maior ausência no recorte ativo."
+import caderno as cad
+painel, quadro = cad.faltantes(base, escolas, 'in_')
+cad.barras(painel, 'Fração ausente', porcentagem=True)
+```
+
+```{python}
+#| label: tbl-aus-bin
+#| tbl-cap: "Proporção de valores ausentes após as regras de domínio."
+#| tbl-colwidths: [52, 24, 24]
+tabela(quadro)
+```
+
+Uma queda após restringir as escolas em atividade indica que o universo contribui para o padrão de ausência. A ausência residual deve ser mantida no denominador apenas como informação de cobertura. Nas taxas de oferta, o denominador contém respostas válidas.
+
+```{=latex}
+\clearpage
+```
+
+## Cobertura das variáveis de quantidade
+
+As quantidades podem ficar ausentes pelo preenchimento original ou pelo tratamento de códigos especiais. O gráfico compara os sete campos de quantidade de maior ausência no recorte ativo. É uma auditoria da disponibilidade das medidas, anterior a qualquer imputação para modelagem.
+
+```{python}
+#| label: fig-aus-qt
+#| fig-cap: "Valores ausentes nos campos de quantidade."
+painel, quadro = cad.faltantes(base, escolas, 'qt_')
+cad.barras(painel, "Fração ausente", porcentagem=True)
+```
+
+```{python}
+#| label: tbl-aus-qt
+#| tbl-cap: "Dados do painel cobertura das variáveis de quantidade."
+tabela(quadro)
+```
+
+As diferenças entre campos importam para a construção de somas. A medida de computadores exige os dois componentes observados. Imputar uma contagem para compor o alvo mudaria a pergunta da regressão.
+
+```{=latex}
+\clearpage
+```
+
+## Distribuição das quantidades de matrículas
+
+A tabela registra o número de respostas válidas, os extremos e duas referências distributivas. A figura põe a mediana e o P90 na mesma escala de contagem.
+
+```{python}
+#| label: fig-matriculas-q
+#| fig-cap: "Distribuição das quantidades de matrículas."
+painel, quadro = cad.quantidades(escolas, {'qt_mat_bas': 'Total', 'qt_mat_inf': 'Infantil', 'qt_mat_fund': 'Fundamental', 'qt_mat_med': 'Médio', 'qt_mat_eja': 'EJA'})
+cad.barras(painel, "Unidades por escola", porcentagem=False)
+```
+
+```{python}
+#| label: tbl-matriculas-q
+#| tbl-cap: "Dados do painel distribuição das quantidades de matrículas."
+tabela(quadro)
+```
+
+O P90 é o menor valor aproximado que abrange 90% das observações de cada campo. Com mediana zero e P90 positivo, a oferta pode estar concentrada em parte das escolas. A modelagem usa transformações logarítmicas para reduzir a influência de grandes contagens sem alterar a ordem dos valores.
+
+```{=latex}
+\clearpage
+```
+
+## Distribuição dos equipamentos disponíveis
+
+A tabela registra o número de respostas válidas, os extremos e duas referências distributivas. A figura põe a mediana e o P90 na mesma escala de contagem.
+
+```{python}
+#| label: fig-equip-q
+#| fig-cap: "Distribuição dos equipamentos disponíveis."
+painel, quadro = cad.quantidades(escolas, {'qt_desktop_aluno': 'Desktops', 'qt_comp_portatil_aluno': 'Portáteis', 'qt_tablet_aluno': 'Tablets', 'qt_salas_utilizadas': 'Salas'})
+cad.barras(painel, "Unidades por escola", porcentagem=False)
+```
+
+```{python}
+#| label: tbl-equip-q
+#| tbl-cap: "Dados do painel distribuição dos equipamentos disponíveis."
+tabela(quadro)
+```
+
+As duas primeiras contagens compõem o alvo de regressão. A linha de tablets documenta a cobertura de uma categoria de equipamento diferente. Quantidades máximas precisam ser lidas com cautela. A mediana e o P90 descrevem o corpo da distribuição.
+
+```{=latex}
+\clearpage
+```
+
+## Distribuição dos quadros de pessoal
+
+A tabela registra o número de respostas válidas, os extremos e duas referências distributivas. A figura põe a mediana e o P90 na mesma escala de contagem.
+
+```{python}
+#| label: fig-pessoal-q
+#| fig-cap: "Distribuição dos quadros de pessoal."
+painel, quadro = cad.quantidades(escolas, {'qt_prof_administrativos': 'Administrativos', 'qt_prof_servicos_gerais': 'Serviços gerais', 'qt_prof_bibliotecario': 'Biblioteca', 'qt_prof_gestao': 'Gestão'})
+cad.barras(painel, "Unidades por escola", porcentagem=False)
+```
+
+```{python}
+#| label: tbl-pessoal-q
+#| tbl-cap: "Dados do painel distribuição dos quadros de pessoal."
+tabela(quadro)
+```
+
+Uma mediana zero pode refletir a falta do cargo naquela unidade ou uma organização em que a função é compartilhada. A contagem descreve o que foi declarado para o estabelecimento. Este quadro ajuda a distinguir capacidade de pessoal dos indicadores físicos.
+
 
 # Análise exploratória
 
@@ -138,6 +259,210 @@ perfis_exploratorios(escolas)
 texto_exploratorio(escolas)
 ```
 
+## Conectividade na escola
+
+O indicador é acesso à internet declarado pela escola. O gráfico compara cobertura, enquanto o modelo usa o evento complementar, escola sem internet.
+
+```{python}
+#| label: fig-rec-internet
+#| fig-cap: "Conectividade na escola por região e localização."
+painel, quadro = cad.recurso(escolas, 'in_internet')
+cad.barras(painel, "Proporção de respostas afirmativas", porcentagem=True)
+```
+
+```{python}
+#| label: tbl-rec-internet
+#| tbl-cap: "Dados do painel conectividade na escola."
+tabela(quadro)
+```
+
+Internet na administração, qualidade de conexão e acesso dos estudantes são dimensões diferentes. A leitura deste painel se restringe à existência declarada de conexão.
+
+```{=latex}
+\clearpage
+```
+
+## Internet para estudantes
+
+Este painel separa a presença de internet para uso estudantil do indicador geral de conectividade. A taxa usa os estabelecimentos com respostas válidas ao campo.
+
+```{python}
+#| label: fig-rec-alunos
+#| fig-cap: "Internet para estudantes por região e localização."
+painel, quadro = cad.recurso(escolas, 'in_internet_alunos')
+cad.barras(painel, "Proporção de respostas afirmativas", porcentagem=True)
+```
+
+```{python}
+#| label: tbl-rec-alunos
+#| tbl-cap: "Dados do painel internet para estudantes."
+tabela(quadro)
+```
+
+Um território pode apresentar alta conectividade geral e cobertura menor de acesso estudantil. O campo ficou fora da classificação porque poderia revelar diretamente aspectos da variável-alvo.
+
+```{=latex}
+\clearpage
+```
+
+## Banda larga
+
+Comparamos a proporção de escolas que declaram banda larga entre respostas válidas por região e localização. Esse indicador complementa a medida binária de acesso.
+
+```{python}
+#| label: fig-rec-banda
+#| fig-cap: "Banda larga por região e localização."
+painel, quadro = cad.recurso(escolas, 'in_banda_larga')
+cad.barras(painel, "Proporção de respostas afirmativas", porcentagem=True)
+```
+
+```{python}
+#| label: tbl-rec-banda
+#| tbl-cap: "Dados do painel banda larga."
+tabela(quadro)
+```
+
+A declaração de banda larga representa uma categoria tecnológica. Velocidade efetiva, latência, estabilidade e disponibilidade durante o horário escolar exigiriam medidas adicionais.
+
+```{=latex}
+\clearpage
+```
+
+## Água potável
+
+A água é um serviço básico da infraestrutura escolar. Comparar as duas localizações por região ajuda a identificar desigualdades em recursos que antecedem as condições de uso de tecnologia.
+
+```{python}
+#| label: fig-rec-agua
+#| fig-cap: "Água potável por região e localização."
+painel, quadro = cad.recurso(escolas, 'in_agua_potavel')
+cad.barras(painel, "Proporção de respostas afirmativas", porcentagem=True)
+```
+
+```{python}
+#| label: tbl-rec-agua
+#| tbl-cap: "Dados do painel água potável."
+tabela(quadro)
+```
+
+Um hiato positivo indica maior cobertura urbana. A prevalência regional também depende da proporção de escolas rurais, então comparações nacionais precisam considerar a composição territorial.
+
+```{=latex}
+\clearpage
+```
+
+## Energia da rede pública
+
+O cálculo usa a existência de ligação à rede pública. O denominador contém respostas válidas em cada região e localização.
+
+```{python}
+#| label: fig-rec-energia
+#| fig-cap: "Energia da rede pública por região e localização."
+painel, quadro = cad.recurso(escolas, 'in_energia_rede_publica')
+cad.barras(painel, "Proporção de respostas afirmativas", porcentagem=True)
+```
+
+```{python}
+#| label: tbl-rec-energia
+#| tbl-cap: "Dados do painel energia da rede pública."
+tabela(quadro)
+```
+
+Soluções autônomas podem fornecer energia a um estabelecimento sem ligação à rede. O painel mede cobertura da rede pública e identifica condições de provisão diferentes.
+
+```{=latex}
+\clearpage
+```
+
+## Esgoto da rede pública
+
+A taxa separa os estabelecimentos ligados à rede pública de esgoto. As diferenças de cobertura informam sobre disponibilidade de infraestrutura coletiva no entorno escolar.
+
+```{python}
+#| label: fig-rec-esgoto
+#| fig-cap: "Esgoto da rede pública por região e localização."
+painel, quadro = cad.recurso(escolas, 'in_esgoto_rede_publica')
+cad.barras(painel, "Proporção de respostas afirmativas", porcentagem=True)
+```
+
+```{python}
+#| label: tbl-rec-esgoto
+#| tbl-cap: "Dados do painel esgoto da rede pública."
+tabela(quadro)
+```
+
+Sistemas locais de tratamento podem existir onde a rede pública não chega. Interpretar o indicador como ligação à rede evita atribuir a ausência de um serviço mais amplo.
+
+```{=latex}
+\clearpage
+```
+
+## Biblioteca ou sala de leitura
+
+O indicador combina biblioteca e sala de leitura conforme a variável de origem. O desdobramento por localização mostra como esse recurso se distribui dentro das regiões.
+
+```{python}
+#| label: fig-rec-biblioteca
+#| fig-cap: "Biblioteca ou sala de leitura por região e localização."
+painel, quadro = cad.recurso(escolas, 'in_biblioteca_sala_leitura')
+cad.barras(painel, "Proporção de respostas afirmativas", porcentagem=True)
+```
+
+```{python}
+#| label: tbl-rec-biblioteca
+#| tbl-cap: "Dados do painel biblioteca ou sala de leitura."
+tabela(quadro)
+```
+
+A variável registra existência. Acervo, horários e condições de uso não entram na contagem. A leitura conjunta com porte ajuda a separar descrição territorial de diferenças de escala.
+
+```{=latex}
+\clearpage
+```
+
+## Laboratório de informática
+
+O laboratório representa um espaço dedicado, separado da contagem de computadores para estudantes e da disponibilidade de internet.
+
+```{python}
+#| label: fig-rec-lab
+#| fig-cap: "Laboratório de informática por região e localização."
+painel, quadro = cad.recurso(escolas, 'in_laboratorio_informatica')
+cad.barras(painel, "Proporção de respostas afirmativas", porcentagem=True)
+```
+
+```{python}
+#| label: tbl-rec-lab
+#| tbl-cap: "Dados do painel laboratório de informática."
+tabela(quadro)
+```
+
+Uma escola pode oferecer equipamentos sem laboratório dedicado. O painel descreve infraestrutura física. A regressão usa a quantidade declarada de desktops e portáteis para estimar outro aspecto da disponibilidade.
+
+```{=latex}
+\clearpage
+```
+
+## Rampas de acessibilidade
+
+A presença de rampas foi comparada entre zonas urbanas e rurais dentro de cada região. A unidade continua sendo a escola.
+
+```{python}
+#| label: fig-rec-rampas
+#| fig-cap: "Rampas de acessibilidade por região e localização."
+painel, quadro = cad.recurso(escolas, 'in_acessibilidade_rampas')
+cad.barras(painel, "Proporção de respostas afirmativas", porcentagem=True)
+```
+
+```{python}
+#| label: tbl-rec-rampas
+#| tbl-cap: "Dados do painel rampas de acessibilidade."
+tabela(quadro)
+```
+
+A declaração de rampas cobre um componente da acessibilidade. A existência dessa estrutura não resume as condições de circulação, outros equipamentos ou a conformidade do conjunto do prédio.
+
+
 # Análise espacial da conectividade
 
 Para investigar onde as diferenças se concentram, somamos as escolas sem internet e dividimos pelo número de respostas válidas em cada combinação de UF e localização. O código estadual foi obtido a partir dos dois primeiros dígitos do código municipal. Em GeoPandas, juntamos esse indicador à malha estadual do IBGE de 2025, validamos a correspondência de códigos e projetamos os polígonos em SIRGAS 2000 / Brazil Polyconic. A escala de cores é comum aos dois mapas para permitir comparação direta. Dentro da UF com maior diferença, examinamos também a dispersão dos percentuais municipais.
@@ -155,6 +480,231 @@ mapas(mapa)
 #| tbl-cap: "Estados com maior hiato rural–urbano. Percentuais sobre as respostas válidas em cada recorte."
 resumo_espacial(mapa, municipios)
 ```
+
+```{=latex}
+\clearpage
+```
+
+## Diagnóstico por UF no Norte
+
+O gráfico ordena as UFs pela fração de respondentes sem acesso. A tabela mantém escolas ativas, respostas válidas, casos e matrículas como medidas distintas.
+
+```{python}
+#| label: fig-reg-norte
+#| fig-cap: "Escolas sem internet nas UFs do Norte."
+painel, quadro = cad.regional(escolas, 'Norte')
+cad.barras(painel, "Proporção sem internet", porcentagem=True)
+```
+
+```{python}
+#| label: tbl-reg-norte
+#| tbl-cap: "Dados do painel diagnóstico por uf no norte."
+tabela(quadro)
+```
+
+A proporção estadual resume o total de escolas respondentes. Compare a posição no gráfico com a quantidade absoluta da tabela. Taxa e volume respondem a perguntas diferentes: intensidade local e dimensão da demanda.
+
+```{=latex}
+\clearpage
+```
+
+## Diagnóstico por UF no Nordeste
+
+O gráfico ordena as UFs pela fração de respondentes sem acesso. A tabela mantém escolas ativas, respostas válidas, casos e matrículas como medidas distintas.
+
+```{python}
+#| label: fig-reg-nordeste
+#| fig-cap: "Escolas sem internet nas UFs do Nordeste."
+painel, quadro = cad.regional(escolas, 'Nordeste')
+cad.barras(painel, "Proporção sem internet", porcentagem=True)
+```
+
+```{python}
+#| label: tbl-reg-nordeste
+#| tbl-cap: "Dados do painel diagnóstico por uf no nordeste."
+tabela(quadro)
+```
+
+A região reúne nove UFs. A comparação separa a carga absoluta das diferenças percentuais. A coluna de matrículas se refere a todas as escolas em atividade incluídas na UF.
+
+```{=latex}
+\clearpage
+```
+
+## Diagnóstico por UF no Centro-Oeste
+
+O gráfico ordena as UFs pela fração de respondentes sem acesso. A tabela mantém escolas ativas, respostas válidas, casos e matrículas como medidas distintas.
+
+```{python}
+#| label: fig-reg-centro-oeste
+#| fig-cap: "Escolas sem internet nas UFs do Centro-Oeste."
+painel, quadro = cad.regional(escolas, 'Centro-Oeste')
+cad.barras(painel, "Proporção sem internet", porcentagem=True)
+```
+
+```{python}
+#| label: tbl-reg-centro-oeste
+#| tbl-cap: "Dados do painel diagnóstico por uf no centro-oeste."
+tabela(quadro)
+```
+
+A comparação inclui o Distrito Federal. Os denominadores permitem ler diferenças de cobertura mesmo quando o universo de estabelecimentos é muito diferente entre UFs.
+
+```{=latex}
+\clearpage
+```
+
+## Diagnóstico por UF no Sudeste
+
+O gráfico ordena as UFs pela fração de respondentes sem acesso. A tabela mantém escolas ativas, respostas válidas, casos e matrículas como medidas distintas.
+
+```{python}
+#| label: fig-reg-sudeste
+#| fig-cap: "Escolas sem internet nas UFs do Sudeste."
+painel, quadro = cad.regional(escolas, 'Sudeste')
+cad.barras(painel, "Proporção sem internet", porcentagem=True)
+```
+
+```{python}
+#| label: tbl-reg-sudeste
+#| tbl-cap: "Dados do painel diagnóstico por uf no sudeste."
+tabela(quadro)
+```
+
+Use a variação da taxa entre UFs para ler intensidade e a contagem para dimensionar a ocorrência. A distribuição de matrículas é contextual e não pondera o indicador de conectividade.
+
+```{=latex}
+\clearpage
+```
+
+## Diagnóstico por UF no Sul
+
+O gráfico ordena as UFs pela fração de respondentes sem acesso. A tabela mantém escolas ativas, respostas válidas, casos e matrículas como medidas distintas.
+
+```{python}
+#| label: fig-reg-sul
+#| fig-cap: "Escolas sem internet nas UFs do Sul."
+painel, quadro = cad.regional(escolas, 'Sul')
+cad.barras(painel, "Proporção sem internet", porcentagem=True)
+```
+
+```{python}
+#| label: tbl-reg-sul
+#| tbl-cap: "Dados do painel diagnóstico por uf no sul."
+tabela(quadro)
+```
+
+Com três UFs, pequenas diferenças percentuais podem coexistir com contagens relevantes. A tabela preserva essa leitura conjunta, especialmente quando a taxa geral parece próxima de zero.
+
+```{=latex}
+\clearpage
+```
+
+## Oito maiores diferenças entre zona rural e urbana
+
+A diferença é a taxa rural sem internet menos a urbana na mesma UF. A ordenação enfatiza o contraste dentro da UF em vez do nível nacional agregado.
+
+```{python}
+#| label: fig-hiatos-uf
+#| fig-cap: "Comparação rural e urbana nas UFs com maiores hiatos."
+painel, quadro = cad.pior_distancia(mapa)
+cad.barras(painel, "Proporção sem internet", porcentagem=True)
+```
+
+```{python}
+#| label: tbl-hiatos-uf
+#| tbl-cap: "Dados do painel oito maiores diferenças entre zona rural e urbana."
+tabela(quadro)
+```
+
+O denominador rural pode ser muito menor do que o urbano. A tabela mostra ambos para evitar atribuir o mesmo peso amostral a taxas obtidas de universos com tamanhos distintos.
+
+```{=latex}
+\clearpage
+```
+
+## Municípios com maior ausência de internet na zona rural
+
+O ranking usa o código municipal e a localização das escolas. Mantivemos municípios com pelo menos 30 respostas no recorte e apresentamos os oito maiores percentuais. Em empate, o maior denominador vem primeiro.
+
+```{python}
+#| label: fig-mun-0
+#| fig-cap: "Municípios no topo do recorte da zona rural."
+painel, quadro = cad.municipio(escolas, 'Rural')
+cad.barras(painel, "Proporção sem internet", porcentagem=True)
+```
+
+```{python}
+#| label: tbl-mun-0
+#| tbl-cap: "Dados do painel municípios com maior ausência de internet na zona rural."
+tabela(quadro)
+```
+
+A lista identifica concentrações entre municípios elegíveis. O corte é um critério de comparabilidade e pode excluir municípios pequenos com dificuldades relevantes. As taxas são descritivas para o ano do Censo.
+
+```{=latex}
+\clearpage
+```
+
+## Municípios com maior ausência de internet na zona urbana
+
+O ranking usa o código municipal e a localização das escolas. Mantivemos municípios com pelo menos 30 respostas no recorte e apresentamos os oito maiores percentuais. Em empate, o maior denominador vem primeiro.
+
+```{python}
+#| label: fig-mun-1
+#| fig-cap: "Municípios no topo do recorte da zona urbana."
+painel, quadro = cad.municipio(escolas, 'Urbana')
+cad.barras(painel, "Proporção sem internet", porcentagem=True)
+```
+
+```{python}
+#| label: tbl-mun-1
+#| tbl-cap: "Dados do painel municípios com maior ausência de internet na zona urbana."
+tabela(quadro)
+```
+
+A lista identifica concentrações entre municípios elegíveis. O corte é um critério de comparabilidade e pode excluir municípios pequenos com dificuldades relevantes. As taxas são descritivas para o ano do Censo.
+
+```{=latex}
+\clearpage
+```
+
+## Distribuição espacial da água potável
+
+A leitura geográfica amplia a interpretação da conectividade com um serviço básico independente. A figura preserva a mesma escala percentual do mapa de energia. O quadro indica os menores valores de cobertura.
+
+```{python}
+#| label: fig-agua-mapa
+#| fig-cap: "Distribuição espacial da água potável."
+cad.mapa_servico(mapa, escolas, 'in_agua_potavel')
+```
+
+```{python}
+#| label: tbl-agua-mapa
+#| tbl-cap: "Oito UFs com menor cobertura no indicador."
+tabela(cad.tabela_servico(escolas, 'in_agua_potavel'))
+```
+
+```{=latex}
+\clearpage
+```
+
+## Distribuição espacial da energia de rede
+
+O mapa usa o mesmo recorte de escolas ativas e registra a ligação à rede pública. A comparação sugere onde vale examinar conjuntamente o contexto físico e a conectividade. As taxas estaduais ocultam variação intramunicipal.
+
+```{python}
+#| label: fig-energia-mapa
+#| fig-cap: "Distribuição espacial da energia de rede."
+cad.mapa_servico(mapa, escolas, 'in_energia_rede_publica')
+```
+
+```{python}
+#| label: tbl-energia-mapa
+#| tbl-cap: "Oito UFs com menor cobertura no indicador."
+tabela(cad.tabela_servico(escolas, 'in_energia_rede_publica'))
+```
+
 
 # Perfis de infraestrutura
 
@@ -185,6 +735,88 @@ graficos_agrupamento(amostra, xy, variancia)
 #| tbl-cap: "Composição dos perfis na amostra. A taxa sem internet usa respostas válidas."
 diagnostico_perfis(amostra, melhor_cluster, variancia)
 ```
+
+## Silhueta versus quantidade de grupos
+
+Mantivemos as mesmas 4.000 escolas, os atributos e a escala em todas as alternativas. A silhueta mede o afastamento de outros grupos em relação à coesão do próprio grupo. Comparar métodos com a mesma base torna visível o quanto a escolha de $k$ influencia a separação.
+
+```{python}
+#| label: fig-trajetoria-clusters
+#| fig-cap: "Silhueta por algoritmo e quantidade solicitada de grupos."
+cad.curvas_clusters(grade)
+```
+
+```{python}
+#| label: tbl-tamanho-clusters
+#| tbl-cap: "Menor grupo encontrado nas configurações de dois e três grupos."
+eleg = grade.loc[grade.Grupos.isin([2, 3]), ['Método', 'Grupos', 'Menor grupo', 'Efetivos']].copy()
+eleg['Menor grupo'] = eleg['Menor grupo'].map(pct)
+tabela(eleg)
+```
+
+A regra de tamanho mínimo evita escolher agrupamentos definidos só por um pequeno conjunto de observações. O resultado descreve uma amostra e serve como apoio para interpretar o perfil dos estabelecimentos.
+
+## Concordância entre algoritmos
+
+Métodos diferentes podem encontrar fronteiras distintas mesmo quando usam o mesmo número de grupos. Reestimamos as três partições no $k$ selecionado, com a mesma matriz de atributos da amostra. O índice de Rand ajustado (ARI) compara atribuições de pares de escolas e desconta a concordância esperada ao acaso. A correspondência numérica entre rótulos não é necessária para a comparação.
+
+```{python}
+#| label: tbl-ari
+#| tbl-cap: "Índice de Rand ajustado para as três comparações pareadas."
+ari, cargas, variancia_acum = cad.comparacao_clusters(amostra, melhor_cluster['Grupos'])
+tabela(ari)
+```
+
+Um valor próximo de 1 indica forte concordância. Valores próximos de zero correspondem a baixa concordância além do acaso. Resultados de baixa concordância recomendam interpretar os agrupamentos como descrições dependentes do método e dos atributos escolhidos.
+
+```{python}
+#| label: fig-pca-variancia
+#| fig-cap: "Variância acumulada pela sequência de componentes principais."
+import matplotlib.pyplot as plt
+plt.figure(figsize=(8.5, 2.65))
+plt.plot(range(1, len(variancia_acum)+1), variancia_acum * 100, 'o-')
+plt.xlabel('Número de componentes'); plt.ylabel('Variância acumulada (%)'); plt.tight_layout(); plt.show()
+```
+
+```{=latex}
+\clearpage
+```
+
+## Como ler os eixos da projeção PCA
+
+Os coeficientes descrevem a direção de cada componente na escala padronizada. A primeira componente maximiza a variância representada. A segunda resume a variação seguinte e é ortogonal à primeira. O sinal global de qualquer componente pode ser invertido sem alterar a projeção como descrição geométrica.
+
+```{python}
+#| label: tbl-cargas-pca
+#| tbl-cap: "Coeficientes das duas primeiras componentes na base padronizada."
+tabela(cad.formatar(cargas, {'PC1': lambda x: numero(x, 3), 'PC2': lambda x: numero(x, 3)}, 'Atributo'))
+```
+
+A magnitude dos coeficientes ajuda a identificar quais atributos mais contribuem para cada direção. A separação visível em duas dimensões representa apenas parte da variância. A comparação dos agrupamentos usa o espaço padronizado completo.
+
+```{=latex}
+\clearpage
+```
+
+## Características externas dos perfis identificados
+
+A localização administrativa e a conectividade entram nesta leitura depois do agrupamento. Com isso, comparamos a composição dos perfis sem construir os grupos diretamente a partir desses resultados.
+
+```{python}
+#| label: fig-composicao-perfis
+#| fig-cap: "Composição regional dos perfis de infraestrutura."
+composicao = pd.crosstab(amostra.no_regiao, amostra.Perfil, normalize='index')
+cad.barras(composicao, 'Fração das escolas da região na amostra', porcentagem=True)
+```
+
+```{python}
+#| label: tbl-composicao-perfis
+#| tbl-cap: "Escolas amostradas por região e perfil."
+tabela(pd.crosstab(amostra.no_regiao, amostra.Perfil).reset_index())
+```
+
+Os totais variam entre regiões. A figura usa proporções por região e a tabela mantém o suporte observado. O número atribuído ao perfil é um rótulo técnico, não uma ordem de qualidade.
+
 
 # Classificação de escolas sem internet
 
@@ -244,11 +876,358 @@ grafico_limiares(modelo)
 tabelas_validacao(modelo)
 ```
 
+```{=latex}
+\clearpage
+```
+
+## Classificador logística
+
+A regressão logística associa os atributos ao logaritmo da razão de chances. A regularização controla o tamanho dos coeficientes e reduz instabilidade quando vários indicadores refletem dimensões parecidas.
+
+A ROC mostra a capacidade de ordenar positivos e negativos. A curva de calibração usa grupos de probabilidades semelhantes. A tabela mantém o limiar de 0,50 para comparar as quatro células de confusão com uma regra idêntica entre os modelos.
+
+```{python}
+#| label: fig-cls-log
+#| fig-cap: "Curva ROC e calibração em municípios de teste para Logística."
+cad.rodar_classificador(modelo, 'Logística')
+```
+
+```{python}
+#| label: tbl-cls-log
+#| tbl-cap: "Diagnóstico do classificador Logística com corte em 0,50."
+tabela(cad.quadro_classificador(modelo, 'Logística'))
+```
+
+A área ROC responde à ordenação entre classes. O Brier penaliza diferenças entre probabilidades e valores binários observados. A matriz informa o volume de erros relevante para uma operação de triagem.
+
+```{=latex}
+\clearpage
+```
+
+## Classificador random forest
+
+A floresta combina árvores com amostragem e diversidade de atributos. Limitar profundidade e tamanho das folhas reduz a sensibilidade a combinações raras. O modelo permite interações entre porte e serviços sem especificá-las em uma fórmula linear.
+
+A ROC mostra a capacidade de ordenar positivos e negativos. A curva de calibração usa grupos de probabilidades semelhantes. A tabela mantém o limiar de 0,50 para comparar as quatro células de confusão com uma regra idêntica entre os modelos.
+
+```{python}
+#| label: fig-cls-forest
+#| fig-cap: "Curva ROC e calibração em municípios de teste para Random forest."
+cad.rodar_classificador(modelo, 'Random forest')
+```
+
+```{python}
+#| label: tbl-cls-forest
+#| tbl-cap: "Diagnóstico do classificador Random forest com corte em 0,50."
+tabela(cad.quadro_classificador(modelo, 'Random forest'))
+```
+
+A área ROC responde à ordenação entre classes. O Brier penaliza diferenças entre probabilidades e valores binários observados. A matriz informa o volume de erros relevante para uma operação de triagem.
+
+```{=latex}
+\clearpage
+```
+
+## Classificador gradient boosting
+
+O boosting acrescenta árvores em sequência para melhorar a perda do conjunto. Limitamos a complexidade e a taxa de aprendizado. Este método pode representar relações não lineares entre região, porte e infraestrutura.
+
+A ROC mostra a capacidade de ordenar positivos e negativos. A curva de calibração usa grupos de probabilidades semelhantes. A tabela mantém o limiar de 0,50 para comparar as quatro células de confusão com uma regra idêntica entre os modelos.
+
+```{python}
+#| label: fig-cls-boost
+#| fig-cap: "Curva ROC e calibração em municípios de teste para Gradient boosting."
+cad.rodar_classificador(modelo, 'Gradient boosting')
+```
+
+```{python}
+#| label: tbl-cls-boost
+#| tbl-cap: "Diagnóstico do classificador Gradient boosting com corte em 0,50."
+tabela(cad.quadro_classificador(modelo, 'Gradient boosting'))
+```
+
+A área ROC responde à ordenação entre classes. O Brier penaliza diferenças entre probabilidades e valores binários observados. A matriz informa o volume de erros relevante para uma operação de triagem.
+
+```{=latex}
+\clearpage
+```
+
+## Eficiência da fila de triagem
+
+Ordenamos as escolas de teste pelo escore do modelo escolhido na validação. A curva informa a fração acumulada de escolas sem internet identificadas à medida que a fila cresce. Cada ponto usa um limiar de escore e agrega empates como bloco.
+
+```{python}
+#| label: fig-fila-triagem
+#| fig-cap: "Detecção acumulada de escolas sem internet em função da fração priorizada."
+cad.acumulado(modelo)
+```
+
+A diagonal representa uma fila sem informação preditiva. A distância acima da diagonal mostra o ganho descritivo em priorização. A escolha de quantas escolas verificar depende do custo operacional, da capacidade de checagem e do custo de deixar casos de fora.
+
+```{=latex}
+\clearpage
+```
+
+## Desbalanceamento e critérios de seleção
+
+O conjunto de teste contém poucos casos sem acesso em relação ao total. Uma regra que previsse sempre conectividade acumularia muitos acertos por volume. Isso explica a prioridade dada à precisão média na validação e à distribuição de falsos positivos e negativos na leitura do teste.
+
+A precisão média resume precisão e recall ao longo dos limiares. Seu patamar de referência é a prevalência do evento. A precisão de um limiar informa a fração de alertas verdadeiros e o recall informa a fração das ocorrências recuperadas. O F2 atribui maior peso ao recall para refletir o objetivo exploratório de triagem.
+
+A escolha de hiperparâmetros e do limiar dependeu das dobras de treino. Os resultados nos municípios reservados avaliam o protocolo já escolhido. A exclusão das variáveis que indicam internet diretamente evita uma comparação circular.
+
+```{python}
+#| label: tbl-criteria-cls
+#| tbl-cap: "Referência teórica de prevalência e resultados de discriminação."
+comparar = modelo['teste'][['Modelo', 'AP', 'ROC-AUC', 'Precisão', 'Recall']]
+tabela_modelos(comparar)
+```
+
+```{=latex}
+\clearpage
+```
+
+# Regressão da disponibilidade de computadores
+
+A segunda tarefa estima o número de computadores para estudantes por escola. O alvo soma desktops e computadores portáteis, condicionado à observação dos dois campos. O valor zero continua no recorte quando os dois componentes foram declarados como zero. Tablets ficam fora da definição. As entradas são os atributos estruturais da classificação, sem os componentes ou derivados diretos do alvo.
+
+A regressão produz uma estimativa de quantidade na escala de estabelecimento. Ela serve para descrever o erro de um exercício preditivo com municípios reservados. A avaliação pede atenção especial às escolas com muitas unidades, porque o desvio absoluto costuma crescer com o porte.
+
+```{python}
+#| echo: true
+from regressao import treinar_regressao
+reg = treinar_regressao(escolas)
+```
+
+```{python}
+#| label: tbl-amostra-reg
+#| tbl-cap: "Amostra elegível e partição municipal para a regressão."
+resumo_reg = {
+    'Escolas elegíveis': reg['elegiveis'], 'Alvo igual a zero': reg['zeros'],
+    'Escolas de treino': reg['treino'], 'Municípios de treino': reg['mun_treino'],
+    'Escolas de teste': reg['teste'], 'Municípios de teste': reg['mun_teste']}
+tabela(pd.DataFrame([(k, numero(v)) for k, v in resumo_reg.items()], columns=['Item', 'Quantidade']))
+```
+
+A partição reserva cerca de 20% dos municípios. O tamanho em escolas depende da distribuição de estabelecimentos por município. A presença de uma escola no teste implica que todas as demais escolas daquele município também ficaram fora do treino.
+
+```{=latex}
+\clearpage
+```
+
+## Escala do alvo e métricas de avaliação
+
+A distribuição por escola tem cauda longa. Ajustamos os modelos na escala $\log(1+y)$ e convertemos as predições para o número de computadores. A transformação é aplicada dentro do estimador. A seleção usa erro absoluto médio na escala original por dobra. Para avaliação final, predições negativas são ajustadas para zero.
+
+```{python}
+#| label: fig-reg-alvo
+#| fig-cap: "Distribuição do alvo observado no conjunto de teste em escala logarítmica."
+import numpy as np
+plt.figure(figsize=(8.5, 2.75))
+plt.hist(np.log1p(reg['yv']), bins=30)
+plt.xlabel('log(1 + computadores)'); plt.ylabel('Escolas de teste'); plt.tight_layout(); plt.show()
+```
+
+MAE mede a diferença absoluta média. RMSE aumenta a penalidade para erros grandes. O $R^2$ mede o ajuste relativo a prever a média do conjunto avaliado. Viés é a média assinada de previsto menos observado, com valores negativos indicando subestimação líquida. O estimador de referência emprega a mediana do conjunto de treino em cada partição.
+
+```{=latex}
+\clearpage
+```
+
+## Regressor ridge
+
+O modelo linear estima efeitos aditivos na escala transformada. O parâmetro de penalização controla a magnitude dos coeficientes. Ele serve como comparação estruturada para saber quanto relações não lineares agregam ao exercício.
+
+O gráfico de dispersão exibe uma amostra fixa do teste em escala logarítmica, com diagonal de ajuste perfeito. O painel de viés usa todas as escolas de teste e agrupa pela quantidade observada. Assim, erros em escolas de grande porte permanecem visíveis mesmo quando o conjunto é dominado por contagens pequenas.
+
+```{python}
+#| label: fig-reg-ridge
+#| fig-cap: "Diagnóstico de predição e erro por faixa para Ridge."
+cad.figura_regressao(reg, 'Ridge')
+```
+
+```{python}
+#| label: tbl-reg-ridge
+#| tbl-cap: "Métricas para Ridge, com erro na escala de computadores."
+tabela(cad.quadro_regressao(reg, 'Ridge'))
+```
+
+```{=latex}
+\clearpage
+```
+
+## Regressor random forest
+
+A floresta calcula médias de muitas árvores. As árvores capturam interações sem uma especificação paramétrica. A profundidade máxima regula a complexidade das partições e o tamanho mínimo de folha evita grupos muito pequenos.
+
+O gráfico de dispersão exibe uma amostra fixa do teste em escala logarítmica, com diagonal de ajuste perfeito. O painel de viés usa todas as escolas de teste e agrupa pela quantidade observada. Assim, erros em escolas de grande porte permanecem visíveis mesmo quando o conjunto é dominado por contagens pequenas.
+
+```{python}
+#| label: fig-reg-rf
+#| fig-cap: "Diagnóstico de predição e erro por faixa para Random forest."
+cad.figura_regressao(reg, 'Random forest')
+```
+
+```{python}
+#| label: tbl-reg-rf
+#| tbl-cap: "Métricas para Random forest, com erro na escala de computadores."
+tabela(cad.quadro_regressao(reg, 'Random forest'))
+```
+
+```{=latex}
+\clearpage
+```
+
+## Regressor gradient boosting
+
+O modelo adiciona árvores de baixa complexidade ao longo do ajuste. A grade varia a quantidade máxima de folhas, com uma taxa de aprendizagem comum nas combinações. Isso permite avaliar o efeito da flexibilidade da árvore no erro administrativo em unidades.
+
+O gráfico de dispersão exibe uma amostra fixa do teste em escala logarítmica, com diagonal de ajuste perfeito. O painel de viés usa todas as escolas de teste e agrupa pela quantidade observada. Assim, erros em escolas de grande porte permanecem visíveis mesmo quando o conjunto é dominado por contagens pequenas.
+
+```{python}
+#| label: fig-reg-gb
+#| fig-cap: "Diagnóstico de predição e erro por faixa para Gradient boosting."
+cad.figura_regressao(reg, 'Gradient boosting')
+```
+
+```{python}
+#| label: tbl-reg-gb
+#| tbl-cap: "Métricas para Gradient boosting, com erro na escala de computadores."
+tabela(cad.quadro_regressao(reg, 'Gradient boosting'))
+```
+
+```{=latex}
+\clearpage
+```
+
+## Comparação das alternativas de regressão
+
+O melhor método é o que apresenta menor MAE médio em cinco dobras municipais de treino. O ranking de teste serve para avaliação externa ao ajuste e pode diferir do ranking de validação. A mediana representa uma regra simples que ignora atributos.
+
+```{python}
+#| label: tbl-reg-comparacao
+#| tbl-cap: "Comparação das três alternativas e da referência por mediana."
+tabela_modelos(reg['resultados'])
+```
+
+```{python}
+sel = reg['resultados'].set_index('Modelo')
+nome = reg['melhor']
+d = sel.loc[nome]
+ref = sel.loc['Mediana']
+ganho = 1 - d['MAE'] / ref['MAE']
+display(Markdown(f"**Seleção pela validação: {nome}.** O MAE no teste foi de {numero(d['MAE'], 2)} computadores, frente a {numero(ref['MAE'], 2)} da mediana. A redução relativa do erro foi de {pct(ganho)}. O RMSE foi de {numero(d['RMSE'], 2)} e o viés médio de {numero(d['Viés'], 2)} computadores."))
+```
+
+A redução em MAE mede proximidade média da quantidade declarada. Para decidir se esse erro é aceitável, é necessário considerar finalidade, escala da escola e custo de estimar para cima ou para baixo. O desempenho médio pode mascarar subestimação em grupos específicos.
+
+```{=latex}
+\clearpage
+```
+
+## Erros de regressão por região
+
+As regiões concentram estabelecimentos com perfis físicos e administrativos diferentes. A coluna de quantidade observada ajuda a ler o MAE na escala de cada grupo.
+
+```{python}
+#| label: fig-erro-reg-regiao
+#| fig-cap: "Erros de regressão por região."
+painel, quadro = cad.diagnostico_regressao(reg, 'no_regiao')
+cad.barras(painel, "MAE em computadores", porcentagem=False)
+```
+
+```{python}
+#| label: tbl-erro-reg-regiao
+#| tbl-cap: "Dados do painel erros de regressão por região."
+tabela(quadro)
+```
+
+O perfil de erro constitui evidência sobre a qualidade do exercício, sem representar uma validação temporal para outro ano do Censo.
+
+```{=latex}
+\clearpage
+```
+
+## Erros de regressão por localização
+
+A comparação urbana e rural usa os mesmos municípios de teste e o mesmo estimador selecionado. O viés mostra se a previsão média foi maior ou menor do que o valor observado.
+
+```{python}
+#| label: fig-erro-reg-local
+#| fig-cap: "Erros de regressão por localização."
+painel, quadro = cad.diagnostico_regressao(reg, 'local')
+cad.barras(painel, "MAE em computadores", porcentagem=False)
+```
+
+```{python}
+#| label: tbl-erro-reg-local
+#| tbl-cap: "Dados do painel erros de regressão por localização."
+tabela(quadro)
+```
+
+O perfil de erro constitui evidência sobre a qualidade do exercício, sem representar uma validação temporal para outro ano do Censo.
+
+```{=latex}
+\clearpage
+```
+
+## Erros de regressão por porte da escola
+
+As faixas de porte vêm das matrículas da educação básica. A tabela mantém a escala de computadores por escola e permite observar se o desvio acompanha o tamanho do estabelecimento.
+
+```{python}
+#| label: fig-erro-reg-porte
+#| fig-cap: "Erros de regressão por porte da escola."
+painel, quadro = cad.diagnostico_regressao(reg, 'porte')
+cad.barras(painel, "MAE em computadores", porcentagem=False)
+```
+
+```{python}
+#| label: tbl-erro-reg-porte
+#| tbl-cap: "Dados do painel erros de regressão por porte da escola."
+tabela(quadro)
+```
+
+O perfil de erro constitui evidência sobre a qualidade do exercício, sem representar uma validação temporal para outro ano do Censo.
+
+```{=latex}
+\clearpage
+```
+
+## Grade de regressão e resultados por dobra
+
+A grade usa os mesmos cinco grupos de treino em todas as combinações. As configurações exibem, na ordem, a penalização no Ridge, profundidade e mínimo de observações por folha na floresta, e taxa de aprendizado e máximo de folhas no boosting. A média da coluna final fundamenta a seleção de cada modelo.
+
+```{python}
+#| label: tbl-grade-reg
+#| tbl-cap: "MAE por dobra municipal para cada combinação da busca."
+#| tbl-colwidths: [23, 17, 10, 10, 10, 10, 10, 10]
+tabela_modelos(reg['busca'])
+```
+
+Uma combinação pode se destacar em apenas uma dobra. A média reduz a dependência de um recorte particular, mas a dispersão continua informativa sobre a sensibilidade à composição. O teste reservado avalia a capacidade de generalizar aos municípios daquele recorte.
+
+
 # Conclusões e limitações
 
 O Censo evidencia uma desigualdade territorial de conectividade, acompanhada por diferenças em serviços básicos e recursos pedagógicos. O porte ajuda a diferenciar oferta de laboratório, biblioteca e quadra. Os agrupamentos mostram como esses recursos se acumulam em perfis distintos. Isso permite formular perguntas para uma etapa de diagnóstico, como investigar quais restrições persistem em escolas rurais de porte semelhante.
 
 O classificador melhora a identificação da classe minoritária em relação a uma referência baseada na prevalência. A matriz e a comparação por localização mostram o custo de uma triagem de maior cobertura: parte dos alertas exige conferência, e as taxas de detecção variam entre as zonas. Para orientar ações, convém cruzar alertas com cadastros de conectividade e verificar casos em campo. Os dados são declaratórios e de um único ano, os agrupamentos vêm de uma amostra e mapas estaduais podem ocultar heterogeneidade municipal. Os resultados descrevem associações e desempenho no recorte analisado.
+
+```{python}
+sel = reg['resultados'].set_index('Modelo')
+nome = reg['melhor']
+avaliado = sel.loc[nome]
+referencia = sel.loc['Mediana']
+display(Markdown(
+    f"Na regressão, **{nome}** foi selecionado pelo erro médio nas dobras de treino. "
+    f"O teste apresentou MAE de **{numero(avaliado['MAE'], 2)} computadores por escola**, "
+    f"frente a {numero(referencia['MAE'], 2)} da referência. "
+    f"O viés médio foi de {numero(avaliado['Viés'], 2)} computadores. "
+    "A estimativa descreve a quantidade declarada e depende da cobertura dos campos. "
+    "Ela não mede necessidade de equipamentos nem substitui o inventário de cada unidade."
+))
+```
 
 # Referências
 
@@ -287,4 +1266,36 @@ from IPython.display import Markdown, display
 from supervisionado import pipeline
 
 display(Markdown('```python\n' + getsource(pipeline) + '```'))
+```
+
+```{=latex}
+\clearpage
+```
+
+# Protocolo de replicação dos modelos
+
+Os seguintes trechos executáveis reúnem as decisões que separam a preparação dos atributos, o ajuste e a comparação no teste. As subdivisões são verificadas pelo código com conjuntos de chaves municipais disjuntos. A mesma semente torna as partições reproduzíveis nas versões testadas das bibliotecas.
+
+## Conjuntos de municípios e avaliação
+
+```{python}
+#| echo: true
+auditoria_particoes = pd.DataFrame([
+    ('Classificação', modelo['n_treino'], modelo['n_teste'],
+     modelo['municipios_treino'], modelo['municipios_teste']),
+    ('Regressão', reg['treino'], reg['teste'],
+     reg['mun_treino'], reg['mun_teste']),
+], columns=['Tarefa', 'Treino', 'Teste', 'Mun. treino', 'Mun. teste'])
+tabela(auditoria_particoes)
+```
+
+Cada tarefa tem um universo elegível distinto. As contagens de escolas e municípios permitem verificar a partição sem expor identificadores individuais no apêndice. A regressão exige ambos os componentes da variável-alvo. A classificação exige resposta válida de conectividade.
+
+## Métricas na escala original
+
+O código da regressão usa a função abaixo após inverter a transformação do alvo. A métrica assinada permite distinguir tendência de subestimar de erro absoluto, que sempre é não negativo.
+
+```{python}
+from regressao import metricas
+display(Markdown('```python\n' + getsource(metricas) + '```'))
 ```
