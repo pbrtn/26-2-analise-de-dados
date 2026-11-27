@@ -2,6 +2,10 @@
 
 Projeto colaborativo de análise de dados para a disciplina de Análise de Dados (UFSC, 2026.2).
 
+## Entrega 2
+
+O relatório de infraestrutura e conectividade está na pasta [entrega-2](entrega-2/). O [guia de reprodução](entrega-2/README.md) explica como gerar o PDF em Quarto com Python a partir dos arquivos do repositório.
+
 ## Escopo
 
 - Limpeza e tratamento dos dados

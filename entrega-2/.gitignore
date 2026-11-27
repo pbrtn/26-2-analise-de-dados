@@ -1,0 +1,10 @@
+__pycache__/
+/.quarto/
+/relatorio_files/
+/relatorio.quarto_ipynb*
+/relatorio.aux
+/relatorio.log
+/relatorio.out
+/relatorio.tex
+/relatorio.toc
+/relatorio.xdv

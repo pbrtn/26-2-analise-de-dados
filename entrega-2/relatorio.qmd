@@ -1,0 +1,290 @@
+---
+title: "Infraestrutura e conectividade nas escolas brasileiras"
+author: "Grupo 9 · Pedro Bertoncini Oliveira, Leonardo Ghizoni e Henrique Silva Antonelli"
+date: "2026-11-27"
+date-format: "DD/MM/YYYY"
+bibliography: references.bib
+nocite: '@*'
+jupyter: python3
+crossref:
+  fig-title: Figura
+  tbl-title: Tabela
+format:
+  pdf:
+    documentclass: article
+    pdf-engine: xelatex
+    latex-min-runs: 4
+    papersize: a4
+    mainfont: Lato-Regular.ttf
+    mainfontoptions:
+      - Path=fonts/
+      - BoldFont=Lato-Bold.ttf
+      - ItalicFont=Lato-Italic.ttf
+      - BoldItalicFont=Lato-BoldItalic.ttf
+    toc: true
+    toc-title: Sumário
+    lof: true
+    lot: true
+    number-sections: true
+    colorlinks: true
+    fig-pos: H
+    include-in-header: defs_simple.tex
+    linkcolor: color1
+    urlcolor: color1
+execute:
+  echo: false
+  warning: false
+  error: false
+---
+
+```{python}
+from base import carregar, configurar_graficos, numero, pct, tabela
+import pandas as pd
+
+configurar_graficos()
+base, escolas, auditoria = carregar()
+```
+
+```{=latex}
+\clearpage
+```
+
+# Introdução
+
+O Censo Escolar, coordenado pelo Inep, reúne informações sobre os estabelecimentos da educação básica brasileira. Este relatório retoma a análise exploratória da primeira entrega e investiga três perguntas. Como as condições de infraestrutura variam por território, rede e porte? Quais recursos tendem a aparecer juntos em perfis de escola? Com características cadastrais e físicas, é possível identificar escolas com maior probabilidade de estar sem internet?
+
+O estudo usa a escola como unidade de observação. As comparações descrevem estabelecimentos, com o mesmo peso para cada escola. A modelagem usa dados do mesmo ano para investigar capacidade de discriminação em municípios reservados. Seus resultados sustentam uma triagem exploratória de conectividade.
+
+# Dados e preparação
+
+## Origem, unidade e regras de tratamento
+
+A base de trabalho é o recorte preparado pelo grupo a partir das tabelas de escola e de matrícula da edição de 2025, relacionadas pelo código do estabelecimento. A preparação preserva valores ausentes, valida domínios binários e restringe a análise de infraestrutura às escolas em atividade. O dicionário do Inep marca certas contagens extremas como 88.888. Esses registros foram tratados como ausentes nas contagens. A análise de conectividade usa respostas válidas sobre internet. Para alunos por computador, o denominador é a soma de desktops e portáteis para alunos, considerando escolas com ambas as contagens disponíveis e soma positiva. O indicador por região é a mediana das razões escolares.
+
+```{python}
+#| label: tbl-auditoria
+#| tbl-cap: "Composição da base e recortes analíticos. Fonte: Inep (2025), elaboração do grupo."
+tabela(pd.DataFrame([(chave, numero(valor)) for chave, valor in auditoria.items()],
+                   columns=['Etapa', 'Total']))
+```
+
+## Dicionário analítico e cobertura
+
+A tabela apresenta os campos usados para identificar a escola, aplicar o recorte e construir os indicadores. A mesma definição de ausente é aplicada à base total e ao conjunto de escolas ativas. As diferenças entre os dois recortes ajudam a distinguir a disponibilidade do campo na população de interesse.
+
+```{python}
+#| label: tbl-dicionario
+#| tbl-cap: "Campos principais e proporção de valores ausentes depois da preparação."
+#| tbl-colwidths: [34, 36, 15, 15]
+from evidencias import (tabela_auditoria, cobertura_por_regiao, recortes_conectividade,
+                        texto_conectividade, tabelas_validacao, grafico_limiares)
+tabela_auditoria(base, escolas)
+```
+
+Os indicadores binários usam apenas respostas válidas. Um zero significa ausência do recurso. Para comparar a pressão sobre os equipamentos, exigimos as duas contagens válidas e pelo menos um computador para alunos. A proporção elegível indica o alcance dessa estatística regional.
+
+# Análise exploratória
+
+O recorte explora a distribuição de escolas e matrículas, a cobertura de recursos e as diferenças por porte, território e rede. Os resultados são descritivos. Região, tamanho e localização variam em conjunto, o que limita a interpretação causal das diferenças observadas.
+
+## Perfil dos estabelecimentos
+
+```{python}
+#| label: fig-panorama
+#| fig-cap: "Escolas em atividade por região, rede, localização e porte. Fonte: Inep (2025)."
+from exploratoria import panorama, diferencas, recursos, perfis_exploratorios, texto_exploratorio
+panorama(escolas)
+```
+
+## Conectividade e serviços básicos
+
+```{python}
+#| label: fig-diferencas
+#| fig-cap: "Conectividade, água potável e energia de rede por região e localização. Fonte: Inep (2025)."
+diferencas(escolas)
+```
+
+```{python}
+#| label: tbl-cobertura-regional
+#| tbl-cap: "Conectividade e elegibilidade do indicador de computadores por região."
+cobertura_por_regiao(escolas)
+```
+
+```{python}
+#| label: fig-porte-rede
+#| fig-cap: "Escolas sem internet por porte, rede e localização. Células com menos de 30 respostas são omitidas."
+recortes_conectividade(escolas)
+```
+
+```{python}
+texto_conectividade(escolas)
+```
+
+## Porte, recursos pedagógicos e oferta de EJA
+
+```{python}
+#| label: fig-recursos
+#| fig-cap: "Recursos pedagógicos por porte e pressão sobre os computadores disponíveis. Fonte: Inep (2025)."
+recursos(escolas)
+```
+
+```{python}
+#| label: fig-perfis-exploratorios
+#| fig-cap: "Matrículas, oferta de EJA e coexistência de recursos. Fonte: Inep (2025)."
+perfis_exploratorios(escolas)
+```
+
+```{python}
+texto_exploratorio(escolas)
+```
+
+# Análise espacial da conectividade
+
+Para investigar onde as diferenças se concentram, somamos as escolas sem internet e dividimos pelo número de respostas válidas em cada combinação de UF e localização. O código estadual foi obtido a partir dos dois primeiros dígitos do código municipal. Em GeoPandas, juntamos esse indicador à malha estadual do IBGE de 2025, validamos a correspondência de códigos e projetamos os polígonos em SIRGAS 2000 / Brazil Polyconic. A escala de cores é comum aos dois mapas para permitir comparação direta. Dentro da UF com maior diferença, examinamos também a dispersão dos percentuais municipais.
+
+```{python}
+#| label: fig-espacial
+#| fig-cap: "Percentual de escolas sem internet por UF e localização. Fonte: Inep e Malha Municipal Digital do IBGE (2025)."
+from espacial import territorial, mapas, resumo_espacial
+mapa, municipios = territorial(escolas)
+mapas(mapa)
+```
+
+```{python}
+#| label: tbl-hiato
+#| tbl-cap: "Estados com maior hiato rural–urbano. Percentuais sobre as respostas válidas em cada recorte."
+resumo_espacial(mapa, municipios)
+```
+
+# Perfis de infraestrutura
+
+## Métodos, atributos e critério de seleção
+
+Os agrupamentos investigam quais recursos aparecem em conjunto. Usamos uma amostra aleatória fixa de 4.000 escolas para comparar K-Means, Ward e mistura gaussiana nas mesmas observações. Os atributos são sete indicadores físicos e o logaritmo de matrículas mais um. Selecionamos os campos para cobrir serviços básicos, recursos pedagógicos, acessibilidade e porte. A imputação pela moda permite preservar os registros da amostra e a padronização evita que a escala de matrículas domine as distâncias. A internet permanece fora do ajuste e é comparada entre grupos depois.
+
+Testamos de dois a seis grupos por método. Demos preferência à maior silhueta entre as soluções cujo menor grupo representa pelo menos 5% da amostra. Esse piso preserva perfis com tamanho suficiente para descrição. O K-Means minimiza a dispersão interna em torno de centroides, Ward agrega grupos para controlar o aumento de variância e a mistura gaussiana admite grupos com dispersões diferentes. O PCA resume a estrutura para visualização após a comparação dos agrupamentos.
+
+```{python}
+#| label: tbl-silhueta
+#| tbl-cap: "Silhueta por método e quantidade de grupos. Quanto maior, maior a separação relativa entre grupos."
+from agrupamento import agrupar, tabela_agrupamento, graficos_agrupamento, diagnostico_perfis
+grade, melhor_cluster, amostra, xy, variancia = agrupar(escolas)
+tabela_agrupamento(grade)
+```
+
+## Interpretação dos perfis
+
+```{python}
+#| label: fig-perfis
+#| fig-cap: "Projeção em componentes principais e cobertura dos recursos nos perfis selecionados."
+graficos_agrupamento(amostra, xy, variancia)
+```
+
+```{python}
+#| label: tbl-perfis
+#| tbl-cap: "Composição dos perfis na amostra. A taxa sem internet usa respostas válidas."
+diagnostico_perfis(amostra, melhor_cluster, variancia)
+```
+
+# Classificação de escolas sem internet
+
+## Protocolo de validação
+
+A classe positiva é **escola sem internet**. Usamos região, rede, localização, porte, composição das matrículas e infraestrutura física. Internet para alunos, banda larga e o código municipal ficam fora dos preditores. O município define os grupos de treino, validação e teste. Assim, escolas do mesmo município permanecem juntas e a estimativa no teste se refere a municípios reservados, dentro do mesmo ano.
+
+Treinamos regressão logística como referência interpretável, random forest para interações não lineares e gradient boosting para comparar árvores ajustadas sequencialmente. Uma referência de prevalência orienta a leitura da precisão média (AP, resumo da curva precisão–recall). A AP foi escolhida porque é sensível à dificuldade de identificar a classe minoritária. ROC-AUC mede discriminação geral. Precisão e recall medem, respectivamente, quantos alertas são verdadeiros e quantas escolas sem internet foram encontradas.
+
+A busca em grade usa cinco dobras estratificadas por grupo dentro do treino. Imputação, padronização e codificação são ajustadas dentro de cada dobra. Os atributos derivados incluem índices de serviços e recursos, composição de matrículas, matrículas por sala e interação de porte com ruralidade. As razões ficam ausentes quando o denominador é zero. Para medir a contribuição desses atributos, repetimos a busca do método escolhido sem os derivados, usando as mesmas dobras. A seleção do método, dos hiperparâmetros e do limiar usa apenas o treino.
+
+## Desempenho e erros
+
+```{python}
+#| label: tbl-validacao
+#| tbl-cap: "Precisão média (AP) em cinco dobras no treino para a primeira configuração da grade e para a melhor."
+from supervisionado import treinar, tabela_modelos, graficos_modelos, texto_modelos
+modelo = treinar(escolas)
+tabela_modelos(modelo['cv'])
+```
+
+```{python}
+#| label: tbl-teste
+#| tbl-cap: "Desempenho nos municípios de teste. Limiar de 0,50, exceto na última linha."
+tabela_modelos(modelo['teste'])
+```
+
+```{python}
+#| label: fig-desempenho
+#| fig-cap: "Curvas no teste e matriz de confusão do modelo escolhido. Percentuais da matriz por linha observada."
+graficos_modelos(modelo)
+```
+
+```{python}
+#| label: tbl-falhas
+#| tbl-cap: "Detecção por localização no teste com o limiar selecionado no treino."
+tabela(modelo['grupos'])
+```
+
+```{python}
+texto_modelos(modelo)
+```
+
+## Sensibilidade ao limiar e desempenho por região
+
+A curva mostra como precisão e recall variam nas previsões fora da dobra do treino. Um limiar de triagem mais baixo amplia a cobertura, com mais alertas a verificar. A escolha do ponto destacado foi feita no treino. A tabela regional usa o teste reservado e permite comparar a detecção sob o mesmo limiar. Taxas de subgrupos com poucos casos positivos devem ser lidas junto às contagens.
+
+```{python}
+#| label: fig-limiares
+#| fig-cap: "Precisão e recall em função do limiar nas previsões fora da dobra do treino."
+grafico_limiares(modelo)
+```
+
+```{python}
+#| label: tbl-erros-regionais
+#| tbl-cap: "Desempenho por região nos municípios de teste, no limiar escolhido no treino."
+tabelas_validacao(modelo)
+```
+
+# Conclusões e limitações
+
+O Censo evidencia uma desigualdade territorial de conectividade, acompanhada por diferenças em serviços básicos e recursos pedagógicos. O porte ajuda a diferenciar oferta de laboratório, biblioteca e quadra. Os agrupamentos mostram como esses recursos se acumulam em perfis distintos. Isso permite formular perguntas para uma etapa de diagnóstico, como investigar quais restrições persistem em escolas rurais de porte semelhante.
+
+O classificador melhora a identificação da classe minoritária em relação a uma referência baseada na prevalência. A matriz e a comparação por localização mostram o custo de uma triagem de maior cobertura: parte dos alertas exige conferência, e as taxas de detecção variam entre as zonas. Para orientar ações, convém cruzar alertas com cadastros de conectividade e verificar casos em campo. Os dados são declaratórios e de um único ano, os agrupamentos vêm de uma amostra e mapas estaduais podem ocultar heterogeneidade municipal. Os resultados descrevem associações e desempenho no recorte analisado.
+
+# Referências
+
+::: {#refs}
+:::
+
+```{=latex}
+\clearpage
+\appendix
+```
+
+# Busca de hiperparâmetros por dobra
+
+Os escores abaixo são precisões médias calculadas no treino. As cinco dobras foram comuns aos três métodos. A média aritmética orientou a seleção. Na coluna de configuração, a ordem é $C$ para a logística, profundidade e mínimo de observações por folha para random forest, e taxa de aprendizado e máximo de folhas para gradient boosting. Os resultados nos municípios de teste estão no capítulo de classificação.
+
+```{python}
+#| label: tbl-grade-completa
+#| tbl-cap: "Configurações testadas e AP nas cinco dobras (D1 a D5)."
+#| tbl-colwidths: [24, 18, 9, 9, 9, 9, 9, 13]
+tabela_modelos(modelo['combinacoes'])
+```
+
+```{=latex}
+\clearpage
+```
+
+# Roteiro de reprodução e trechos de código
+
+Execute `quarto render relatorio.qmd --to pdf` na pasta do projeto com o ambiente descrito no `README.md`. O módulo `base.py` aplica os tratamentos e recortes. `exploratoria.py` e `evidencias.py` constroem as saídas descritivas. `espacial.py` integra a malha do IBGE, `agrupamento.py` estima os perfis e `supervisionado.py` define os atributos, as partições e a seleção de modelos. As figuras e tabelas são geradas durante a renderização.
+
+O trecho a seguir é extraído do próprio módulo supervisionado. O pré-processamento fica dentro do pipeline. Na validação, ele é ajustado somente com as observações disponíveis na parte de treino da dobra.
+
+```{python}
+from inspect import getsource
+from IPython.display import Markdown, display
+from supervisionado import pipeline
+
+display(Markdown('```python\n' + getsource(pipeline) + '```'))
+```
